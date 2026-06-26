@@ -1,4 +1,4 @@
--- // ESP + Aimbot + Silent Aim + FOV (Menu đẹp, Box bo góc, Kéo thả nút)
+-- // ESP + Aimbot + Silent Aim + FOV (Menu cuộn, Box bo góc siêu mượt, Line tia trên)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -12,7 +12,8 @@ local ESP = {
     Line = true,
     Name = true,
     TeamColor = true,
-    BoxRadius = 8         -- Bán kính bo góc box
+    BoxRadius = 8,
+    CornerSegments = 16       -- Độ mịn góc bo (càng lớn càng tròn)
 }
 local Aimbot = {
     Enabled = false,
@@ -38,7 +39,6 @@ Frame.BorderSizePixel = 0
 Frame.Visible = true
 Frame.Parent = ScreenGui
 
--- Bo góc + viền sáng
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 14)
 UICorner.Parent = Frame
@@ -63,7 +63,6 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 14)
 TitleCorner.Parent = Title
 
--- Gradient cho Title
 local TitleGradient = Instance.new("UIGradient")
 TitleGradient.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 180, 255)),
@@ -94,6 +93,11 @@ UserInputService.InputChanged:Connect(function(input)
         updateInput(input)
     end
 end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
 
 -- Close Button
 local CloseButton = Instance.new("TextButton")
@@ -107,7 +111,7 @@ CloseButton.TextSize = 18
 CloseButton.Parent = Frame
 Instance.new("UICorner", CloseButton).CornerRadius = UDim.new(1,0)
 
--- Nút tròn hiện khi ẩn menu (có thể kéo)
+-- Nút tròn khi ẩn menu (kéo được)
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Size = UDim2.new(0, 50, 0, 50)
 ToggleButton.Position = UDim2.new(0, 20, 0.5, -25)
@@ -143,7 +147,6 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
         btnDragging = false
     end
 end)
@@ -168,7 +171,7 @@ ScrollingFrame.BackgroundTransparency = 1
 ScrollingFrame.BorderSizePixel = 0
 ScrollingFrame.ScrollBarThickness = 4
 ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 180, 255)
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 500) -- sẽ cập nhật sau
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 ScrollingFrame.Parent = Frame
 
 local UIListLayout = Instance.new("UIListLayout")
@@ -177,7 +180,11 @@ UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Parent = ScrollingFrame
 
--- Hàm tạo Toggle Switch đẹp
+UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+end)
+
+-- ================== TOGGLE SWITCH ĐẸP ==================
 local function CreateToggleSwitch(name, default, callback)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, -10, 0, 40)
@@ -194,10 +201,11 @@ local function CreateToggleSwitch(name, default, callback)
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.Parent = ToggleFrame
 
-    local SwitchBg = Instance.new("Frame")
+    local SwitchBg = Instance.new("TextButton")
     SwitchBg.Size = UDim2.new(0, 44, 0, 24)
     SwitchBg.Position = UDim2.new(1, -50, 0.5, -12)
     SwitchBg.BackgroundColor3 = default and Color3.fromRGB(0, 180, 255) or Color3.fromRGB(80, 80, 80)
+    SwitchBg.Text = ""
     SwitchBg.Parent = ToggleFrame
     Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
 
@@ -214,25 +222,16 @@ local function CreateToggleSwitch(name, default, callback)
         Knob.Position = enabled and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
     end
 
-    SwitchBg.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            enabled = not enabled
-            updateVisual()
-            callback(enabled)
-        end
-    end)
-    Knob.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            enabled = not enabled
-            updateVisual()
-            callback(enabled)
-        end
+    SwitchBg.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        updateVisual()
+        callback(enabled)
     end)
 
     return ToggleFrame
 end
 
--- FOV Label và nút điều chỉnh
+-- FOV Section
 local FOVSection = Instance.new("Frame")
 FOVSection.Size = UDim2.new(1, -10, 0, 30)
 FOVSection.BackgroundTransparency = 1
@@ -276,7 +275,7 @@ end
 fovMinus.MouseButton1Click:Connect(function() adjustFOV(-10) end)
 fovPlus.MouseButton1Click:Connect(function() adjustFOV(10) end)
 
--- Thêm các toggle
+-- Thêm toggle
 CreateToggleSwitch("ESP", true, function(v) ESP.Enabled = v end)
 CreateToggleSwitch("Box", true, function(v) ESP.Box = v end)
 CreateToggleSwitch("Line", true, function(v) ESP.Line = v end)
@@ -284,9 +283,6 @@ CreateToggleSwitch("Name", true, function(v) ESP.Name = v end)
 CreateToggleSwitch("Team Color", true, function(v) ESP.TeamColor = v end)
 CreateToggleSwitch("Aimbot (Head)", false, function(v) Aimbot.Enabled = v end)
 CreateToggleSwitch("Silent Aim (Head)", false, function(v) SilentAim.Enabled = v end)
-
--- Cập nhật CanvasSize dựa trên số lượng phần tử
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
 
 -- ================== DRAWING ==================
 FOVCircle = Drawing.new("Circle")
@@ -298,20 +294,20 @@ FOVCircle.Transparency = 0.7
 FOVCircle.Filled = false
 FOVCircle.Visible = true
 
--- Hàm tạo Box bo góc (rounded rectangle)
+-- Hàm tạo Box bo góc siêu mượt
 local function CreateRoundedBox()
     local parts = {}
-    -- 4 cạnh thẳng: top, right, bottom, left
+    -- 4 cạnh thẳng
     for i = 1, 4 do
         local line = Drawing.new("Line")
         line.Thickness = 2
         line.Transparency = 1
         table.insert(parts, line)
     end
-    -- 4 góc bo, mỗi góc 8 đoạn
-    local cornerSegments = 8
+    -- 4 góc, mỗi góc dùng CornerSegments đoạn
+    local segs = ESP.CornerSegments
     for i = 1, 4 do
-        for j = 1, cornerSegments do
+        for j = 1, segs do
             local line = Drawing.new("Line")
             line.Thickness = 2
             line.Transparency = 1
@@ -322,7 +318,6 @@ local function CreateRoundedBox()
 end
 
 local function UpdateRoundedBox(parts, tl, tr, br, bl, radius, color)
-    -- Hàm tính điểm trên cung tròn (góc phần tư) từ startAngle đến endAngle
     local function arcPoints(center, startAngle, endAngle, segments)
         local pts = {}
         for i = 0, segments do
@@ -334,46 +329,36 @@ local function UpdateRoundedBox(parts, tl, tr, br, bl, radius, color)
         return pts
     end
 
-    -- Xác định vùng bên trong bo góc (inset)
     local innerTL = tl + Vector2.new(radius, radius)
     local innerTR = tr + Vector2.new(-radius, radius)
     local innerBR = br + Vector2.new(-radius, -radius)
     local innerBL = bl + Vector2.new(radius, -radius)
 
-    -- Các cạnh thẳng
     local edgeLines = { parts[1], parts[2], parts[3], parts[4] }
-    -- Cạnh trên (từ innerTL đến innerTR)
     edgeLines[1].From = innerTL
     edgeLines[1].To = innerTR
-    -- Cạnh phải (từ innerTR đến innerBR)
     edgeLines[2].From = innerTR
     edgeLines[2].To = innerBR
-    -- Cạnh dưới (từ innerBR đến innerBL)
     edgeLines[3].From = innerBR
     edgeLines[3].To = innerBL
-    -- Cạnh trái (từ innerBL đến innerTL)
     edgeLines[4].From = innerBL
     edgeLines[4].To = innerTL
-
     for _, l in ipairs(edgeLines) do
         l.Color = color
         l.Visible = true
     end
 
-    -- Góc: Top-Left, Top-Right, Bottom-Right, Bottom-Left
     local corners = {
-        {center = innerTL, start = math.pi, endAngle = math.pi * 1.5},      -- TL: 180 -> 270
-        {center = innerTR, start = math.pi * 1.5, endAngle = 0},           -- TR: 270 -> 360 (0)
-        {center = innerBR, start = 0, endAngle = math.pi / 2},             -- BR: 0 -> 90
-        {center = innerBL, start = math.pi / 2, endAngle = math.pi}        -- BL: 90 -> 180
+        {center = innerTL, start = math.pi, endAngle = math.pi * 1.5},
+        {center = innerTR, start = math.pi * 1.5, endAngle = 0},
+        {center = innerBR, start = 0, endAngle = math.pi / 2},
+        {center = innerBL, start = math.pi / 2, endAngle = math.pi}
     }
-
+    local segs = ESP.CornerSegments
     local lineIdx = 5
-    local cornerSegments = 8
     for c = 1, 4 do
         local corner = corners[c]
-        local pts = arcPoints(corner.center, corner.start, corner.endAngle, cornerSegments)
-        -- Vẽ các đoạn nối giữa các điểm liên tiếp
+        local pts = arcPoints(corner.center, corner.start, corner.endAngle, segs)
         for i = 1, #pts-1 do
             local l = parts[lineIdx]
             l.From = pts[i]
@@ -385,7 +370,7 @@ local function UpdateRoundedBox(parts, tl, tr, br, bl, radius, color)
     end
 end
 
--- ================== ESP & Aimbot LOGIC ==================
+-- ================== ESP & AIMBOT LOGIC ==================
 local Connections = {}
 
 local function GetClosestPlayer()
@@ -464,7 +449,8 @@ local function AddESP(plr)
         if ESP.Line then
             Line.Visible = true
             Line.Color = Color
-            Line.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+            -- Tia bắt đầu từ đỉnh màn hình (tâm trên)
+            Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
             Line.To = Vector2.new(Vector.X, Vector.Y)
         else
             Line.Visible = false
@@ -492,35 +478,39 @@ local function AddESP(plr)
     end
 
     table.insert(Connections, RunService.RenderStepped:Connect(Update))
-
-    -- Silent Aim (hook)
-    if SilentAim.Enabled then
-        local mt = getrawmetatable(game)
-        setreadonly(mt, false)
-        local oldNamecall = mt.__namecall
-        mt.__namecall = newcclosure(function(self, ...)
-            local args = {...}
-            local method = getnamecallmethod()
-            if method == "FireServer" and (self.Name:lower():find("bullet") or self.Name:lower():find("shoot")) then
-                local target = GetClosestPlayer()
-                if target and target.Character and target.Character:FindFirstChild("Head") then
-                    args[1] = target.Character.Head.Position + Vector3.new(0,0.1,0)
-                end
-            end
-            return oldNamecall(self, unpack(args))
-        end)
-        setreadonly(mt, true)
-    end
 end
 
-for _, plr in ipairs(Players:GetPlayers()) do AddESP(plr) end
+-- Thêm ESP cho tất cả người chơi
+for _, plr in ipairs(Players:GetPlayers()) do
+    AddESP(plr)
+end
 Players.PlayerAdded:Connect(AddESP)
 
--- FOV Circle update
+-- ================== SILENT AIM HOOK ==================
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+local oldNamecall = mt.__namecall
+mt.__namecall = newcclosure(function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+    if method == "FireServer" then
+        local nameLower = self.Name:lower()
+        if (nameLower:find("bullet") or nameLower:find("shoot")) and SilentAim.Enabled then
+            local target = GetClosestPlayer()
+            if target and target.Character and target.Character:FindFirstChild("Head") then
+                args[1] = target.Character.Head.Position + Vector3.new(0,0.1,0)
+            end
+        end
+    end
+    return oldNamecall(self, unpack(args))
+end)
+setreadonly(mt, true)
+
+-- ================== FOV CIRCLE UPDATE ==================
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     FOVCircle.Radius = Aimbot.FOV
     FOVCircle.Visible = true
 end)
 
-print("✅ ESP + Aimbot + Silent Aim loaded! [Nâng cấp: menu cuộn, box bo góc, kéo nút]")
+print("✅ ESP + Aimbot + Silent Aim sẵn sàng! (Box bo góc siêu mượt, Line tia trên, menu cuộn)")
