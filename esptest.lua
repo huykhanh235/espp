@@ -15,7 +15,7 @@ local ESP = {
 
 local Aimbot = {
     Enabled = false,
-    Smoothness = 0.15,  -- Càng nhỏ càng ghim chặt
+    Smoothness = 0.15,
     FOV = 120
 }
 
@@ -227,12 +227,13 @@ end
 
 local Connections = {}
 
+-- SỬA LỖI: bỏ dấu \ thừa trước ~=
 local function GetClosestPlayer()
     local closest, dist = nil, Aimbot.FOV
     local mousePos = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr \~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
             local headPos, onScreen = Camera:WorldToViewportPoint(plr.Character.Head.Position)
             if onScreen then
                 local screenPos = Vector2.new(headPos.X, headPos.Y)
@@ -333,7 +334,7 @@ local function AddESP(plr)
 
     table.insert(Connections, RunService.RenderStepped:Connect(Update))
 
-    -- Silent Aim (simple hook - works in many games)
+    -- Silent Aim
     if SilentAim.Enabled then
         local mt = getrawmetatable(game)
         setreadonly(mt, false)
@@ -341,10 +342,10 @@ local function AddESP(plr)
         mt.__namecall = newcclosure(function(self, ...)
             local args = {...}
             local method = getnamecallmethod()
-            if method == "FireServer" and self.Name:lower():find("bullet") or self.Name:lower():find("shoot") then
+            if method == "FireServer" and (self.Name:lower():find("bullet") or self.Name:lower():find("shoot")) then
                 local target = GetClosestPlayer()
                 if target and target.Character and target.Character:FindFirstChild("Head") then
-                    args[1] = target.Character.Head.Position + Vector3.new(0,0.1,0)  -- slight offset for head
+                    args[1] = target.Character.Head.Position + Vector3.new(0,0.1,0)
                 end
             end
             return oldNamecall(self, unpack(args))
